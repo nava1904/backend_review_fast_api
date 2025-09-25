@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from fastapi.middleware.cors import CORSMiddleware
-# main.py
+
 from fastapi import FastAPI
 from init_db import init_db
 
@@ -60,13 +60,10 @@ nlp = pipeline(
 # ----------------------
 # FastAPI App
 # ----------------------
-app = FastAPI(title="Reviews Copilot API")
 
 # ----------------------
 # Schemas
 # ----------------------
-class TextIn(BaseModel):
-    text: str
 
 class SuggestReplyOut(AIReplyOut):
     review_id: int
