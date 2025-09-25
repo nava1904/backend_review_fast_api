@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlmodel        
+databases      
+transformers
+scikit-learn
+pytest
+python-multipart
+
+torch
+requests
+pydantic
