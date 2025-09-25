@@ -25,19 +25,22 @@ from init_db import init_db
 
 app = FastAPI()
 
-@app.on_event("startup")
+
 def on_startup():
     init_db()
+app.add_event_handler("startup", on_startup)    
 
 
-@app.add_middleware(
+origins = [
+    "https://nava1904-frontend2-streamlit-pageshome-ho0oei.streamlit.app"
+]
+app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://nava1904-frontend2-streamlit-pageshome-ho0oei.streamlit.app"],  
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
-
 
 # ----------------------
 # Security
