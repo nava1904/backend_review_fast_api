@@ -35,13 +35,14 @@ def on_startup():
     allow_origins=["https://nava1904-frontend2-streamlit-pageshome-ho0oei.streamlit.app"],  
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 
 # ----------------------
 # Security
 # ----------------------
+
 API_KEY = "secret123"
 
 def get_api_key(x_api_key: str = Header(...)):
