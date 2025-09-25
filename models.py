@@ -19,6 +19,16 @@ from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from fastapi.middleware.cors import CORSMiddleware
+# main.py
+from fastapi import FastAPI
+from init_db import init_db
+
+app = FastAPI()
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
 
 @app.add_middleware(
     CORSMiddleware,
