@@ -1,11 +1,9 @@
 import uvicorn
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
-from transformers import pipeline
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Body, Path
 from typing import List, Optional
 import datetime
-
 from database import get_db, Review, AIReply
 from schemas import (
     AnalyticsOut,
@@ -19,17 +17,13 @@ from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from fastapi.middleware.cors import CORSMiddleware
-
-from fastapi import FastAPI
 from init_db import init_db
 
 app = FastAPI()
 
-
 def on_startup():
     init_db()
-app.add_event_handler("startup", on_startup)    
-
+app.add_event_handler("startup", on_startup)
 
 origins = [
     "https://nava1904-frontend2-streamlit-pageshome-ho0oei.streamlit.app"
@@ -45,7 +39,6 @@ app.add_middleware(
 # ----------------------
 # Security
 # ----------------------
-
 API_KEY = "secret123"
 
 def get_api_key(x_api_key: str = Header(...)):
@@ -53,21 +46,23 @@ def get_api_key(x_api_key: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid API Key")
 
 # ----------------------
-# AI Pipeline
+# AI Pipeline (Lazy Loading)
 # ----------------------
-nlp = pipeline(
-    "sentiment-analysis",
-    model="distilbert-base-uncased-finetuned-sst-2-english",
-    tokenizer="distilbert-base-uncased-finetuned-sst-2-english",
-)
+from transformers import pipeline
 
-# ----------------------
-# FastAPI App
-# ----------------------
+def get_nlp():
+    # You can switch to a smaller model if needed
+    return pipeline(
+        "sentiment-analysis",
+        model="distilbert-base-uncased-finetuned-sst-2-english",
+        tokenizer="distilbert-base-uncased-finetuned-sst-2-english",
+    )
 
 # ----------------------
 # Schemas
 # ----------------------
+class TextIn(BaseModel):
+    text: str
 
 class SuggestReplyOut(AIReplyOut):
     review_id: int
@@ -86,6 +81,7 @@ def get_health():
 @app.post("/predict", response_model=SentimentResult, dependencies=[Depends(get_api_key)])
 def predict_sentiment(payload: TextIn):
     """Predict sentiment for a single piece of text"""
+    nlp = get_nlp()
     try:
         result = nlp(payload.text)
         return {"label": result[0]["label"], "score": result[0]["score"]}
@@ -95,6 +91,7 @@ def predict_sentiment(payload: TextIn):
 @app.post("/ingest", dependencies=[Depends(get_api_key)])
 def ingest_reviews(reviews: List[ReviewIn], db: Session = Depends(get_db)):
     """Ingest multiple reviews into the database"""
+    nlp = get_nlp()
     inserted_count = 0
     try:
         for r in reviews:
@@ -138,7 +135,6 @@ def get_reviews(
                 Review.topic.ilike(f"%{q}%"),
             )
         )
-
     offset = (page - 1) * page_size
     reviews = query.offset(offset).limit(page_size).all()
     if not reviews:
@@ -158,7 +154,6 @@ def get_analytics(db: Session = Depends(get_db)):
         .group_by(Review.topic)
         .all()
     )
-
     sentiment_counts = {
         key if key is not None else "UNKNOWN": count
         for key, count in sentiment_counts_query
@@ -167,7 +162,6 @@ def get_analytics(db: Session = Depends(get_db)):
         key if key is not None else "UNKNOWN": count
         for key, count in topic_counts_query
     }
-
     return AnalyticsOut(sentiment_counts=sentiment_counts, topic_counts=topic_counts)
 
 @app.get("/search", response_model=List[SearchResultOut], dependencies=[Depends(get_api_key)])
@@ -180,16 +174,13 @@ def search(
     reviews = db.query(Review).all()
     if not reviews:
         return []
-
     review_texts = [r.text for r in reviews]
     review_ids = [r.id for r in reviews]
-
     vectorizer = TfidfVectorizer(stop_words="english")
     vectors = vectorizer.fit_transform(review_texts)
     query_vec = vectorizer.transform([q])
     cosine_similarities = cosine_similarity(query_vec, vectors).flatten()
     top_k_indices = cosine_similarities.argsort()[-k:][::-1]
-
     results = []
     for idx in top_k_indices:
         results.append(
@@ -200,8 +191,6 @@ def search(
             )
         )
     return results
-
-
 
 @app.get("/reviews/{review_id}", response_model=ReviewOut, dependencies=[Depends(get_api_key)])
 def get_review(review_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
@@ -225,20 +214,17 @@ def suggest_ai_reply(
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
-
+    nlp = get_nlp()
     sentiment_result = nlp(review.text)[0]
     sentiment_label = sentiment_result['label']
-
     if sentiment_label == "POSITIVE":
         reply_text = "Thank you for your positive feedback! We are glad you had a great experience."
     elif sentiment_label == "NEGATIVE":
         reply_text = "We're sorry to hear about your experience. We will strive to improve and hope to serve you better next time."
     else:
         reply_text = "Thank you for your review. We appreciate your feedback and will use it to improve."
-
     tags = sentiment_label.lower()
     reasoning_log = f"Reply generated based on detected sentiment '{sentiment_label}'."
-
     ai_reply = db.query(AIReply).filter(AIReply.review_id == review_id).first()
     if ai_reply:
         ai_reply.reply = reply_text
@@ -252,9 +238,7 @@ def suggest_ai_reply(
             reasoning_log=reasoning_log
         )
         db.add(ai_reply)
-
     db.commit()
-
     return {
         "review_id": review_id,
         "reply": reply_text,
@@ -262,9 +246,8 @@ def suggest_ai_reply(
         "reasoning_log": reasoning_log
     }
 
-
 # ----------------------
-# Entry point
+# Entry point (for local dev only)
 # ----------------------
 if __name__ == "__main__":
-    uvicorn.run("models:app", host="0.0.0.0", port=8000, reload=True)  
+    uvicorn.run("models:app", host="0.0.0.0", port=8000, reload=True)
