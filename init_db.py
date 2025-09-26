@@ -1,5 +1,5 @@
-from database import Base, engine
 
-print("Creating database tables...")
-Base.metadata.create_all(bind=engine)
-print("Tables created.")
+from database import Base, engine
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
