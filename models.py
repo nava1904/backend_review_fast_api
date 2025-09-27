@@ -26,7 +26,7 @@ def on_startup():
 app.add_event_handler("startup", on_startup)
 
 origins = [
-    "https://nava1904-frontend2-streamlit-pageshome-ho0oei.streamlit.app"
+    "https://nava1904-frontend2-streamlit-pageshome-ho0oei.streamlit.app/"
 ]
 app.add_middleware(
     CORSMiddleware,
