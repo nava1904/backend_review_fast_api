@@ -1,12 +1,8 @@
 fastapi
 uvicorn
-sqlmodel        
-databases      
+sqlalchemy     
 transformers
 scikit-learn
-pytest
 python-multipart
-
 torch
-requests
 pydantic
